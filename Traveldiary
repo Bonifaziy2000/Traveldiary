@@ -1,0 +1,166 @@
+```javascript
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const Travel = require('./models/Travel');
+
+const app = express();
+const PORT = 3000;
+
+// Подключение к MongoDB
+mongoose.connect('mongodb://localhost/travel-diary', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+});
+
+// Настройка middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
+
+// Главная страница: показать все записи о путешествиях
+app.get('/', async (req, res) => {
+    const travels = await Travel.find();
+    res.render('index', { travels });
+});
+
+// Страница добавления новой записи о путешествии
+app.get('/add', (req, res) => {
+    res.render('add');
+});
+
+// Обработка формы добавления новой записи
+app.post('/add', async (req, res) => {
+    const { title, description, location, date } = req.body;
+    const newTravel = new Travel({ title, description, location, date });
+    await newTravel.save();
+    res.redirect('/');
+});
+
+// Страница редактирования записи
+app.get('/edit/:id', async (req, res) => {
+    const travel = await Travel.findById(req.params.id);
+    res.render('edit', { travel });
+});
+
+// Обработка формы редактирования записи
+app.post('/edit/:id', async (req, res) => {
+    const { title, description, location, date } = req.body;
+    await Travel.findByIdAndUpdate(req.params.id, { title, description, location, date });
+    res.redirect('/');
+});
+
+// Удаление записи
+app.post('/delete/:id', async (req, res) => {
+    await Travel.findByIdAndDelete(req.params.id);
+    res.redirect('/');
+});
+
+// Запуск сервера
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
+```
+
+#### 3. Шаблоны (views/index.ejs)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дневник путешествий</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <h1>Дневник путешествий</h1>
+    <a href="/add">Добавить новое путешествие</a>
+    <ul>
+        <% travels.forEach(travel => { %>
+            <li>
+                <h2><%= travel.title %></h2>
+                <p><%= travel.description %></p>
+                <p>Место: <%= travel.location %></p>
+                <p>Дата: <%= travel.date.toDateString() %></p>
+                <a href="/edit/<%= travel._id %>">Редактировать</a>
+                <form action="/delete/<%= travel._id %>" method="POST">
+                    <button type="submit">Удалить</button>
+                </form>
+            </li>
+        <% }) %>
+    </ul>
+</body>
+</html>
+```
+
+#### 4. Шаблоны (views/add.ejs)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить новое путешествие</title>
+</head>
+<body>
+    <h1>Добавить новое путешествие</h1>
+    <form action="/add" method="POST">
+
+<input type="text" name="title" placeholder="Название" required>
+        <textarea name="description" placeholder="Описание" required></textarea>
+        <input type="text" name="location" placeholder="Место" required>
+        <input type="date" name="date" required>
+        <button type="submit">Добавить</button>
+    </form>
+</body>
+</html>
+```
+
+#### 5. Шаблоны (views/edit.ejs)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактировать путешествие</title>
+</head>
+<body>
+    <h1>Редактировать путешествие</h1>
+    <form action="/edit/<%= travel._id %>" method="POST">
+        <input type="text" name="title" value="<%= travel.title %>" required>
+        <textarea name="description" required><%= travel.description %></textarea>
+        <input type="text" name="location" value="<%= travel.location %>" required>
+        <input type="date" name="date" value="<%= travel.date.toISOString().split('T')[0] %>" required>
+        <button type="submit">Сохранить изменения</button>
+    </form>
+</body>
+</html>
+```
+
+#### 6. Стили (public/styles.css)
+
+```css
+body {
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    color: #333;
+}
+
+ul {
+    list-style-type: none;
+}
+
+li {
+    margin: 20px 0;
+}
+
+form {
+    display: inline;
+}
+```
